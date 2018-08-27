@@ -7,7 +7,6 @@ gen/
 out/
 build/
 workspace.xml
-.idea
 local.properties
 ks.properties
 .classpath
@@ -17,3 +16,11 @@ lint.xml
 protected_strings.xml
 .gradle
 /dist
+
+# IntelliJ IDEA
+.idea
+*.iml
+*.ipr
+*.iws
+classes
+gen-external-apklibs
