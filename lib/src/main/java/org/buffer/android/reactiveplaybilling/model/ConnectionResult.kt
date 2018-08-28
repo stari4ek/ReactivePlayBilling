@@ -2,7 +2,7 @@ package org.buffer.android.reactiveplaybilling.model
 
 import com.android.billingclient.api.BillingClient
 
-sealed class ConnectionResult(@BillingClient.BillingResponse val result: Int?) {
+sealed class ConnectionResult(@BillingClient.BillingResponse val responseCode: Int?) {
 
     data class ConnectionSuccess(@BillingClient.BillingResponse private val billingResponse: Int)
         : ConnectionResult(billingResponse)

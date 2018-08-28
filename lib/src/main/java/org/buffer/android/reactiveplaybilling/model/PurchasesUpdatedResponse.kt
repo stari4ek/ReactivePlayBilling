@@ -3,7 +3,7 @@ package org.buffer.android.reactiveplaybilling.model
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.Purchase
 
-sealed class PurchasesUpdatedResponse(@BillingClient.BillingResponse val result: Int?,
+sealed class PurchasesUpdatedResponse(@BillingClient.BillingResponse val responseCode: Int,
                                       val purchases: List<Purchase>? = null) {
 
     data class PurchasesUpdatedSuccess(@BillingClient.BillingResponse
@@ -12,7 +12,7 @@ sealed class PurchasesUpdatedResponse(@BillingClient.BillingResponse val result:
         : PurchasesUpdatedResponse(billingResponse, items)
 
     data class PurchaseUpdatedFailure(@BillingClient.BillingResponse
-                               private val billingResponse: Int? = null)
+                               private val billingResponse: Int)
         : PurchasesUpdatedResponse(billingResponse)
 
 }
