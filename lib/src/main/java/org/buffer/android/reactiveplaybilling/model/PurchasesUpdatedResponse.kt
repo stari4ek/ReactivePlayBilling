@@ -8,7 +8,7 @@ sealed class PurchasesUpdatedResponse(@BillingClient.BillingResponse val respons
 
     data class PurchasesUpdatedSuccess(@BillingClient.BillingResponse
                                        private val billingResponse: Int,
-                                       private val items: List<Purchase>?)
+                                       val items: List<Purchase>?)
         : PurchasesUpdatedResponse(billingResponse, items)
 
     data class PurchaseUpdatedFailure(@BillingClient.BillingResponse

@@ -8,7 +8,7 @@ sealed class ItemsForSubscriptionResponse(@BillingClient.BillingResponse val res
 
     data class ItemsForSubscriptionSuccess(@BillingClient.BillingResponse
                                          private val billingResponse: Int,
-                                         private val items: List<SkuDetails>)
+                                         val items: List<SkuDetails>)
         : ItemsForSubscriptionResponse(billingResponse, items)
 
     data class ItemsForSubscriptionFailure(@BillingClient.BillingResponse
