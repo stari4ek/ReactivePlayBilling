@@ -12,15 +12,7 @@ import io.reactivex.Completable
 import io.reactivex.Observable
 import io.reactivex.Single
 import io.reactivex.subjects.PublishSubject
-import org.buffer.android.reactiveplaybilling.model.ConnectionResult
-import org.buffer.android.reactiveplaybilling.model.ConsumptionResponse
-import org.buffer.android.reactiveplaybilling.model.ItemsForPurchaseResponse
-import org.buffer.android.reactiveplaybilling.model.ItemsForSubscriptionResponse
-import org.buffer.android.reactiveplaybilling.model.PurchaseResponse
-import org.buffer.android.reactiveplaybilling.model.PurchasesUpdatedResponse
-import org.buffer.android.reactiveplaybilling.model.QueryPurchasesResponse
-import org.buffer.android.reactiveplaybilling.model.QuerySubscriptionsResponse
-import org.buffer.android.reactiveplaybilling.model.SubscriptionResponse
+import org.buffer.android.reactiveplaybilling.model.*
 
 open class ReactivePlayBilling constructor(context: Context) : PurchasesUpdatedListener {
 
@@ -43,14 +35,14 @@ open class ReactivePlayBilling constructor(context: Context) : PurchasesUpdatedL
                 override fun onBillingSetupFinished(@BillingClient.BillingResponse
                                                     responseCode: Int) {
                     if (responseCode == BillingClient.BillingResponse.OK) {
-                        it.onNext(ConnectionResult.ConnectionSuccess(responseCode))
+                        it.onNext(ConnectionSuccess)
                     } else {
-                        it.onNext(ConnectionResult.ConnectionFailure(responseCode))
+                        it.onNext(ConnectionFailure(responseCode))
                     }
                 }
 
                 override fun onBillingServiceDisconnected() {
-                    it.onNext(ConnectionResult.ConnectionFailure())
+                    it.onNext(ConnectionDisconnected)
                 }
             })
         }
