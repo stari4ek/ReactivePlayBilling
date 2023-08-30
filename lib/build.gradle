@@ -2,12 +2,12 @@ apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
 
 android {
-    compileSdkVersion verCompileSdk
-    buildToolsVersion verBuildTools
+    compileSdkVersion 33
+    buildToolsVersion '34.0.0'
 
     defaultConfig {
-        minSdkVersion verMinSdk
-        targetSdkVersion verTargetSdk
+        minSdkVersion 21
+        targetSdkVersion 33
         versionCode 1
         versionName "1.0"
     }
@@ -22,7 +22,7 @@ android {
 }
 
 dependencies {
-    implementation "io.reactivex.rxjava2:rxjava:$verRxJava"
-    implementation "com.android.billingclient:billing:$verBilling"
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$verKotlin"
+    implementation "io.reactivex.rxjava2:rxjava:2.2.21"
+    implementation "com.android.billingclient:billing:1.2.2"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.20"
 }
