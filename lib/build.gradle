@@ -23,6 +23,6 @@ android {
 
 dependencies {
     implementation "io.reactivex.rxjava2:rxjava:2.2.21"
-    implementation "com.android.billingclient:billing-ktx:2.2.1"
+    implementation "com.android.billingclient:billing-ktx:3.0.3"
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.20"
 }
