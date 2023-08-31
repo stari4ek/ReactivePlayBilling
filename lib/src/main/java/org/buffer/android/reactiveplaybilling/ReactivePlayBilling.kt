@@ -3,7 +3,7 @@ package org.buffer.android.reactiveplaybilling
 import android.app.Activity
 import android.content.Context
 import com.android.billingclient.api.*
-import com.android.billingclient.api.Purchase.PurchasesResult
+import com.android.billingclient.api.BillingFlowParams.SubscriptionUpdateParams
 import io.reactivex.Completable
 import io.reactivex.Observable
 import io.reactivex.Single
@@ -64,11 +64,11 @@ class ReactivePlayBilling constructor(context: Context) {
         return querySkuDetails(BillingClient.SkuType.SUBS, skuList)
     }
 
-    fun queryInAppPurchases(): Single<PurchasesResult> {
+    fun queryInAppPurchases(): Single<PurchasesResponse> {
         return queryPurchases(BillingClient.SkuType.INAPP)
     }
 
-    fun querySubscriptions(): Single<PurchasesResult> {
+    fun querySubscriptions(): Single<PurchasesResponse> {
         return queryPurchases(BillingClient.SkuType.SUBS)
     }
 
@@ -80,22 +80,30 @@ class ReactivePlayBilling constructor(context: Context) {
         return queryPurchaseHistory(BillingClient.SkuType.SUBS)
     }
 
+    /**
+     * Should be subscribed on UI thread
+     */
     fun purchase(sku: SkuDetails, activity: Activity): Single<BillingResult> {
         return Single.create {
             val flowParams = BillingFlowParams.newBuilder()
-                    .setSkuDetails(sku)
-                    .build()
+                .setSkuDetails(sku)
+                .build()
             it.onSuccess(billingClient.launchBillingFlow(activity, flowParams))
         }
     }
 
-    fun upgrade(oldSkuId: String, oldPurchaseToken: String, newSku: SkuDetails, activity: Activity):
+    fun updatePurchase(oldPurchaseToken: String, newSku: SkuDetails, activity: Activity):
             Single<BillingResult> {
         return Single.create {
             val flowParams = BillingFlowParams.newBuilder()
-                    .setOldSku(oldSkuId, oldPurchaseToken)
-                    .setSkuDetails(newSku)
-                    .build()
+                .setSubscriptionUpdateParams(
+                    SubscriptionUpdateParams
+                        .newBuilder()
+                        .setOldSkuPurchaseToken(oldPurchaseToken)
+                        .build()
+                )
+                .setSkuDetails(newSku)
+                .build()
             it.onSuccess(billingClient.launchBillingFlow(activity, flowParams))
         }
     }
@@ -140,9 +148,12 @@ class ReactivePlayBilling constructor(context: Context) {
         }
     }
 
-    private fun queryPurchases(@BillingClient.SkuType skuType: String): Single<PurchasesResult> {
+    private fun queryPurchases(@BillingClient.SkuType skuType: String): Single<PurchasesResponse> {
         return Single.create {
-            it.onSuccess(billingClient.queryPurchases(skuType))
+            billingClient.queryPurchasesAsync(skuType) {
+                billingResult, purchases ->
+                    it.onSuccess(PurchasesResponse(billingResult, purchases))
+            }
         }
     }
 
