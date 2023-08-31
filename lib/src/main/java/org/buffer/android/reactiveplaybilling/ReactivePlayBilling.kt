@@ -2,42 +2,39 @@ package org.buffer.android.reactiveplaybilling
 
 import android.app.Activity
 import android.content.Context
-import com.android.billingclient.api.BillingClient
-import com.android.billingclient.api.BillingClientStateListener
-import com.android.billingclient.api.BillingFlowParams
-import com.android.billingclient.api.Purchase
-import com.android.billingclient.api.PurchasesUpdatedListener
-import com.android.billingclient.api.SkuDetailsParams
+import com.android.billingclient.api.*
+import com.android.billingclient.api.Purchase.PurchasesResult
 import io.reactivex.Completable
 import io.reactivex.Observable
 import io.reactivex.Single
 import io.reactivex.subjects.PublishSubject
 import org.buffer.android.reactiveplaybilling.model.*
 
-open class ReactivePlayBilling constructor(context: Context) : PurchasesUpdatedListener {
+class ReactivePlayBilling constructor(context: Context) {
 
-    private val publishSubject = PublishSubject.create<PurchasesUpdatedResponse>()
-    private var billingClient: BillingClient =
-            BillingClient.newBuilder(context).setListener(this).build()
+    private val purchasesUpdatedSubject = PublishSubject.create<PurchasesUpdatedResponse>()
 
-    override fun onPurchasesUpdated(responseCode: Int, purchases: MutableList<Purchase>?) {
-        if (responseCode == BillingClient.BillingResponse.OK) {
-            publishSubject.onNext(PurchasesUpdatedResponse.PurchasesUpdatedSuccess(responseCode,
-                    purchases))
-        } else {
-            publishSubject.onNext(PurchasesUpdatedResponse.PurchaseUpdatedFailure(responseCode))
-        }
+    private val purchasesUpdatedListener = PurchasesUpdatedListener {
+        billingResult, purchases ->
+            purchasesUpdatedSubject.onNext(PurchasesUpdatedResponse(billingResult, purchases))
     }
 
-    open fun connect(): Observable<ConnectionResult> {
+    private var billingClient: BillingClient = BillingClient
+        .newBuilder(context)
+        .setListener(purchasesUpdatedListener)
+        .enablePendingPurchases()
+        .build()
+
+    //
+
+    fun connect(): Observable<ConnectionResult> {
         return Observable.create {
             billingClient.startConnection(object : BillingClientStateListener {
-                override fun onBillingSetupFinished(@BillingClient.BillingResponse
-                                                    responseCode: Int) {
-                    if (responseCode == BillingClient.BillingResponse.OK) {
+                override fun onBillingSetupFinished(billingResult: BillingResult) {
+                    if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
                         it.onNext(ConnectionSuccess)
                     } else {
-                        it.onNext(ConnectionFailure(responseCode))
+                        it.onNext(ConnectionFailure(billingResult))
                     }
                 }
 
@@ -48,157 +45,104 @@ open class ReactivePlayBilling constructor(context: Context) : PurchasesUpdatedL
         }
     }
 
-    open fun disconnect(): Completable {
+    fun disconnect(): Completable {
         return Completable.defer {
             billingClient.endConnection()
             Completable.complete()
         }
     }
 
-    open fun observePurchaseUpdates(): Observable<PurchasesUpdatedResponse> {
-        return publishSubject
+    fun observePurchaseUpdates(): Observable<PurchasesUpdatedResponse> {
+        return purchasesUpdatedSubject
     }
 
-    open fun queryItemsForPurchase(skuList: List<String>): Single<ItemsForPurchaseResponse> {
-        return Single.create {
-            val params = SkuDetailsParams.newBuilder()
-            params.setSkusList(skuList).setType(BillingClient.SkuType.INAPP)
-            billingClient.querySkuDetailsAsync(params.build()) { responseCode, p1 ->
-                if (responseCode == BillingClient.BillingResponse.OK) {
-                    it.onSuccess(ItemsForPurchaseResponse.ItemsForPurchaseSuccess(responseCode, p1))
-                } else {
-                    it.onSuccess(ItemsForPurchaseResponse.ItemsForPurchaseFailure(responseCode))
-                }
-            }
-        }
+    fun queryInAppsForPurchase(skuList: List<String>): Single<SkuDetailsResponse> {
+        return querySkuDetails(BillingClient.SkuType.INAPP, skuList)
     }
 
-    fun querySubscriptionsForPurchase(skuList: List<String>):
-            Single<ItemsForSubscriptionResponse> {
-        return Single.create {
-            val params = SkuDetailsParams.newBuilder()
-            params.setSkusList(skuList).setType(BillingClient.SkuType.SUBS)
-            billingClient.querySkuDetailsAsync(params.build()) { responseCode, p1 ->
-                if (responseCode == BillingClient.BillingResponse.OK) {
-                    it.onSuccess(ItemsForSubscriptionResponse.ItemsForSubscriptionSuccess(responseCode,
-                                 p1))
-                } else {
-                    it.onSuccess(ItemsForSubscriptionResponse.ItemsForSubscriptionFailure(
-                                 responseCode))
-                }
-            }
-        }
+    fun querySubscriptionsForPurchase(skuList: List<String>): Single<SkuDetailsResponse> {
+        return querySkuDetails(BillingClient.SkuType.SUBS, skuList)
     }
 
-    open fun purchaseItem(skuId: String, activity: Activity): Single<PurchaseResponse> {
+    fun queryInAppPurchases(): Single<PurchasesResult> {
+        return queryPurchases(BillingClient.SkuType.INAPP)
+    }
+
+    fun querySubscriptions(): Single<PurchasesResult> {
+        return queryPurchases(BillingClient.SkuType.SUBS)
+    }
+
+    fun queryInAppPurchaseHistory(): Single<PurchaseHistoryResponse> {
+        return queryPurchaseHistory(BillingClient.SkuType.INAPP)
+    }
+
+    fun querySubscriptionHistory(): Single<PurchaseHistoryResponse> {
+        return queryPurchaseHistory(BillingClient.SkuType.SUBS)
+    }
+
+    fun purchase(sku: SkuDetails, activity: Activity): Single<BillingResult> {
         return Single.create {
             val flowParams = BillingFlowParams.newBuilder()
-                    .setSku(skuId)
-                    .setType(BillingClient.SkuType.INAPP)
+                    .setSkuDetails(sku)
                     .build()
-            val responseCode = billingClient.launchBillingFlow(activity, flowParams)
-            if (responseCode == BillingClient.BillingResponse.OK) {
-                it.onSuccess(PurchaseResponse.PurchaseSuccess(responseCode))
-            } else {
-                it.onSuccess(PurchaseResponse.PurchaseFailure(responseCode))
-            }
+            it.onSuccess(billingClient.launchBillingFlow(activity, flowParams))
         }
     }
 
-    open fun queryPurchases(): Single<List<Purchase>> {
-        return Single.create {
-            val queryResult = billingClient.queryPurchases(BillingClient.SkuType.INAPP)
-
-            if (queryResult.responseCode == BillingClient.BillingResponse.OK) {
-                it.onSuccess(queryResult.purchasesList)
-            } else {
-                it.onError(Throwable("Failed to query purchases. Response code: ${queryResult.responseCode}"))
-            }
-        }
-    }
-
-    open fun queryPurchaseHistory(): Single<QueryPurchasesResponse> {
-        return Single.create {
-            billingClient.queryPurchaseHistoryAsync(BillingClient.SkuType.INAPP) {
-                responseCode, result ->
-                if (responseCode == BillingClient.BillingResponse.OK && result != null) {
-                    it.onSuccess(QueryPurchasesResponse.QueryPurchasesSuccess(responseCode, result))
-                } else {
-                    it.onSuccess(QueryPurchasesResponse.QueryPurchasesFailure(responseCode))
-                }
-            }
-        }
-    }
-
-    open fun querySubscriptions(): Single<List<Purchase>> {
-        return Single.create {
-            val queryResult = billingClient.queryPurchases(BillingClient.SkuType.SUBS)
-
-            if (queryResult.responseCode == BillingClient.BillingResponse.OK) {
-                it.onSuccess(queryResult.purchasesList)
-            } else {
-                it.onError(Throwable("Failed to query subscriptions. Response code: ${queryResult.responseCode}"))
-            }
-        }
-    }
-
-    open fun querySubscriptionHistory(): Single<QuerySubscriptionsResponse> {
-        return Single.create {
-            billingClient.queryPurchaseHistoryAsync(BillingClient.SkuType.SUBS)
-            { responseCode, result ->
-                if (responseCode == BillingClient.BillingResponse.OK && result != null) {
-                    it.onSuccess(QuerySubscriptionsResponse.QuerySubscriptionsSuccess(responseCode,
-                                 result))
-                } else {
-                    it.onSuccess(QuerySubscriptionsResponse.QuerySubscriptionsFailure(responseCode))
-                }
-
-            }
-        }
-    }
-
-    open fun consumeItem(purchaseToken: String): Single<ConsumptionResponse> {
-        return Single.create {
-            billingClient.consumeAsync(purchaseToken) { responseCode, outToken ->
-                if (responseCode == BillingClient.BillingResponse.OK) {
-                    it.onSuccess(ConsumptionResponse.ConsumptionSuccess(responseCode, outToken))
-                } else {
-                    it.onSuccess(ConsumptionResponse.ConsumptionFailure(responseCode))
-                }
-            }
-        }
-    }
-
-    open fun purchaseSubscription(skuId: String, activity: Activity):
-            Single<SubscriptionResponse> {
+    fun upgrade(oldSkuId: String, oldPurchaseToken: String, newSku: SkuDetails, activity: Activity):
+            Single<BillingResult> {
         return Single.create {
             val flowParams = BillingFlowParams.newBuilder()
-                    .setSku(skuId)
-                    .setType(BillingClient.SkuType.SUBS)
+                    .setOldSku(oldSkuId, oldPurchaseToken)
+                    .setSkuDetails(newSku)
                     .build()
-            val responseCode = billingClient.launchBillingFlow(activity, flowParams)
-            if (responseCode == BillingClient.BillingResponse.OK) {
-                it.onSuccess(SubscriptionResponse.SubscriptionSuccess(responseCode))
-            } else {
-                it.onSuccess(SubscriptionResponse.SubscriptionFailure(responseCode))
+            it.onSuccess(billingClient.launchBillingFlow(activity, flowParams))
+        }
+    }
+
+    fun consumeItem(purchaseToken: String): Single<ConsumptionResponse> {
+        return Single.create {
+            billingClient.consumeAsync(ConsumeParams
+                .newBuilder()
+                .setPurchaseToken(purchaseToken)
+                .build()
+            ) {
+                    billingResult, outToken ->
+                it.onSuccess(ConsumptionResponse(billingResult, outToken))
             }
         }
     }
 
-    open fun upgradeSubscription(oldSkuId: String, newSkuId: String, activity: Activity):
-            Single<SubscriptionResponse> {
+    //
+
+    private fun querySkuDetails(
+            @BillingClient.SkuType skuType: String,
+            skuList: List<String>): Single<SkuDetailsResponse> {
+
         return Single.create {
-            val flowParams = BillingFlowParams.newBuilder()
-                    .setOldSku(oldSkuId)
-                    .setSku(newSkuId)
-                    .setType(BillingClient.SkuType.SUBS)
-                    .build()
-            val responseCode = billingClient.launchBillingFlow(activity, flowParams)
-            if (responseCode == BillingClient.BillingResponse.OK) {
-                it.onSuccess(SubscriptionResponse.SubscriptionSuccess(responseCode))
-            } else {
-                it.onSuccess(SubscriptionResponse.SubscriptionFailure(responseCode))
+            billingClient.querySkuDetailsAsync(SkuDetailsParams
+                .newBuilder()
+                .setSkusList(skuList)
+                .setType(skuType)
+                .build()
+            ) { billingResult, skus ->
+                it.onSuccess(SkuDetailsResponse(billingResult, skus))
             }
+        }
+    }
+
+    private fun queryPurchaseHistory(@BillingClient.SkuType skuType: String): Single<PurchaseHistoryResponse> {
+        return Single.create {
+            billingClient.queryPurchaseHistoryAsync(skuType) {
+                    billingResult, historyRecords ->
+                it.onSuccess(PurchaseHistoryResponse(billingResult, historyRecords))
+            }
+        }
+    }
+
+    private fun queryPurchases(@BillingClient.SkuType skuType: String): Single<PurchasesResult> {
+        return Single.create {
+            it.onSuccess(billingClient.queryPurchases(skuType))
         }
     }
 
