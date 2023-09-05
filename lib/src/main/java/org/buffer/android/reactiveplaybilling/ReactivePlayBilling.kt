@@ -85,10 +85,15 @@ class ReactivePlayBilling constructor(context: Context) {
     /**
      * Should be subscribed on UI thread
      */
-    fun purchase(sku: SkuDetails, activity: Activity): Completable {
+    fun purchase(
+        sku: SkuDetails,
+        isOfferPersonalized: Boolean,
+        activity: Activity
+    ): Completable {
         return Completable.create {
             val flowParams = BillingFlowParams.newBuilder()
                 .setSkuDetails(sku)
+                .setIsOfferPersonalized(isOfferPersonalized)
                 .build()
             val billingResult = billingClient.launchBillingFlow(activity, flowParams)
             if (billingResult.responseCode == BillingResponseCode.OK) {
@@ -102,7 +107,12 @@ class ReactivePlayBilling constructor(context: Context) {
     /**
      * Should be subscribed on UI thread
      */
-    fun updatePurchase(oldPurchaseToken: String, newSku: SkuDetails, activity: Activity): Completable {
+    fun updatePurchase(
+        oldPurchaseToken: String,
+        newSku: SkuDetails,
+        isOfferPersonalized: Boolean,
+        activity: Activity
+    ): Completable {
         return Completable.create {
             val flowParams = BillingFlowParams.newBuilder()
                 .setSubscriptionUpdateParams(
@@ -112,6 +122,7 @@ class ReactivePlayBilling constructor(context: Context) {
                         .build()
                 )
                 .setSkuDetails(newSku)
+                .setIsOfferPersonalized(isOfferPersonalized)
                 .build()
             val billingResult = billingClient.launchBillingFlow(activity, flowParams)
             if (billingResult.responseCode == BillingResponseCode.OK) {
