@@ -17,6 +17,7 @@ class BillingOperationException internal constructor(msg: String, val result: Bi
         @JvmStatic
         fun codeToString(@BillingResponseCode response: Int): String {
             return when (response) {
+                // Deprecated in 6.0. SERVICE_UNAVAILABLE will be returned instead
                 BillingResponseCode.SERVICE_TIMEOUT -> "service_timeout"
                 BillingResponseCode.FEATURE_NOT_SUPPORTED -> "feature_not_supported"
                 BillingResponseCode.SERVICE_DISCONNECTED -> "service_disconnected"
@@ -29,6 +30,8 @@ class BillingOperationException internal constructor(msg: String, val result: Bi
                 BillingResponseCode.ERROR -> "error"
                 BillingResponseCode.ITEM_ALREADY_OWNED -> "item_already_owned"
                 BillingResponseCode.ITEM_NOT_OWNED -> "item_not_owned"
+                // Added with 6.0. Same errors where previously reported as SERVICE_UNAVAILABLE
+                BillingResponseCode.NETWORK_ERROR -> "network_error"
                 else -> "unknown"
             }
         }
