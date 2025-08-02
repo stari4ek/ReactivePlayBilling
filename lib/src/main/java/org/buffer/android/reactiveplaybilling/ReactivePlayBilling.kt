@@ -59,27 +59,27 @@ class ReactivePlayBilling constructor(context: Context) {
     }
 
     fun queryInAppsForPurchase(skuList: List<String>): Single<List<SkuDetails>> {
-        return querySkuDetails(BillingClient.SkuType.INAPP, skuList)
+        return querySkuDetails(BillingClient.ProductType.INAPP, skuList)
     }
 
     fun querySubscriptionsForPurchase(skuList: List<String>): Single<List<SkuDetails>> {
-        return querySkuDetails(BillingClient.SkuType.SUBS, skuList)
+        return querySkuDetails(BillingClient.ProductType.SUBS, skuList)
     }
 
     fun queryInAppPurchases(): Single<List<Purchase>> {
-        return queryPurchases(BillingClient.SkuType.INAPP)
+        return queryPurchases(BillingClient.ProductType.INAPP)
     }
 
     fun querySubscriptions(): Single<List<Purchase>> {
-        return queryPurchases(BillingClient.SkuType.SUBS)
+        return queryPurchases(BillingClient.ProductType.SUBS)
     }
 
     fun queryInAppPurchaseHistory(): Single<List<PurchaseHistoryRecord>> {
-        return queryPurchaseHistory(BillingClient.SkuType.INAPP)
+        return queryPurchaseHistory(BillingClient.ProductType.INAPP)
     }
 
     fun querySubscriptionHistory(): Single<List<PurchaseHistoryRecord>> {
-        return queryPurchaseHistory(BillingClient.SkuType.SUBS)
+        return queryPurchaseHistory(BillingClient.ProductType.SUBS)
     }
 
     /**
@@ -183,15 +183,15 @@ class ReactivePlayBilling constructor(context: Context) {
     //
 
     private fun querySkuDetails(
-            @BillingClient.SkuType skuType: String,
-            skuList: List<String>
+        @BillingClient.ProductType productType: String,
+        skuList: List<String>
     ): Single<List<SkuDetails>> {
 
         return Single.create {
             billingClient.querySkuDetailsAsync(SkuDetailsParams
                 .newBuilder()
                 .setSkusList(skuList)
-                .setType(skuType)
+                .setType(productType)
                 .build()
             ) { billingResult, skus ->
                 if (billingResult.responseCode == BillingResponseCode.OK) {
@@ -203,9 +203,9 @@ class ReactivePlayBilling constructor(context: Context) {
         }
     }
 
-    private fun queryPurchaseHistory(@BillingClient.SkuType skuType: String): Single<List<PurchaseHistoryRecord>> {
+    private fun queryPurchaseHistory(@BillingClient.ProductType productType: String): Single<List<PurchaseHistoryRecord>> {
         return Single.create {
-            billingClient.queryPurchaseHistoryAsync(skuType) {
+            billingClient.queryPurchaseHistoryAsync(productType) {
                     billingResult, historyRecords ->
 
                 if (billingResult.responseCode == BillingResponseCode.OK) {
@@ -217,9 +217,9 @@ class ReactivePlayBilling constructor(context: Context) {
         }
     }
 
-    private fun queryPurchases(@BillingClient.SkuType skuType: String): Single<List<Purchase>> {
+    private fun queryPurchases(@BillingClient.ProductType productType: String): Single<List<Purchase>> {
         return Single.create {
-            billingClient.queryPurchasesAsync(skuType) {
+            billingClient.queryPurchasesAsync(productType) {
                     billingResult, purchases ->
 
                 if (billingResult.responseCode == BillingResponseCode.OK) {
