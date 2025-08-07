@@ -58,12 +58,12 @@ class ReactivePlayBilling constructor(context: Context) {
         return purchasesUpdatedSubject
     }
 
-    fun queryInAppsForPurchase(skuList: List<String>): Single<List<SkuDetails>> {
-        return querySkuDetails(BillingClient.ProductType.INAPP, skuList)
+    fun queryInAppsForPurchase(productsIds: List<String>): Single<List<ProductDetails>> {
+        return queryProductsDetails(BillingClient.ProductType.INAPP, productsIds)
     }
 
-    fun querySubscriptionsForPurchase(skuList: List<String>): Single<List<SkuDetails>> {
-        return querySkuDetails(BillingClient.ProductType.SUBS, skuList)
+    fun querySubscriptionsForPurchase(productsIds: List<String>): Single<List<ProductDetails>> {
+        return queryProductsDetails(BillingClient.ProductType.SUBS, productsIds)
     }
 
     fun queryInAppPurchases(): Single<List<Purchase>> {
@@ -74,25 +74,24 @@ class ReactivePlayBilling constructor(context: Context) {
         return queryPurchases(BillingClient.ProductType.SUBS)
     }
 
-    fun queryInAppPurchaseHistory(): Single<List<PurchaseHistoryRecord>> {
-        return queryPurchaseHistory(BillingClient.ProductType.INAPP)
-    }
-
-    fun querySubscriptionHistory(): Single<List<PurchaseHistoryRecord>> {
-        return queryPurchaseHistory(BillingClient.ProductType.SUBS)
-    }
-
     /**
      * Should be subscribed on UI thread
      */
     fun purchase(
-        sku: SkuDetails,
+        productDetails: ProductDetails,
+        offerToken: String,
         isOfferPersonalized: Boolean,
         activity: Activity
     ): Completable {
         return Completable.create {
             val flowParams = BillingFlowParams.newBuilder()
-                .setSkuDetails(sku)
+                .setProductDetailsParamsList(listOf(
+                    BillingFlowParams.ProductDetailsParams
+                        .newBuilder()
+                        .setProductDetails(productDetails)
+                        .setOfferToken(offerToken)
+                        .build()
+                ))
                 .setIsOfferPersonalized(isOfferPersonalized)
                 .build()
             val billingResult = billingClient.launchBillingFlow(activity, flowParams)
@@ -109,7 +108,8 @@ class ReactivePlayBilling constructor(context: Context) {
      */
     fun updatePurchase(
         oldPurchaseToken: String,
-        newSku: SkuDetails,
+        newProductDetails: ProductDetails,
+        offerToken: String,
         isOfferPersonalized: Boolean,
         activity: Activity
     ): Completable {
@@ -118,10 +118,16 @@ class ReactivePlayBilling constructor(context: Context) {
                 .setSubscriptionUpdateParams(
                     SubscriptionUpdateParams
                         .newBuilder()
-                        .setOldSkuPurchaseToken(oldPurchaseToken)
+                        .setOldPurchaseToken(oldPurchaseToken)
                         .build()
                 )
-                .setSkuDetails(newSku)
+                .setProductDetailsParamsList(listOf(
+                    BillingFlowParams.ProductDetailsParams
+                        .newBuilder()
+                        .setProductDetails(newProductDetails)
+                        .setOfferToken(offerToken)
+                        .build()
+                ))
                 .setIsOfferPersonalized(isOfferPersonalized)
                 .build()
             val billingResult = billingClient.launchBillingFlow(activity, flowParams)
@@ -182,40 +188,34 @@ class ReactivePlayBilling constructor(context: Context) {
 
     //
 
-    private fun querySkuDetails(
+    private fun queryProductsDetails(
         @BillingClient.ProductType productType: String,
         skuList: List<String>
-    ): Single<List<SkuDetails>> {
+    ): Single<List<ProductDetails>> {
+
+        val queryProductDetailsParams = QueryProductDetailsParams
+            .newBuilder()
+            .setProductList(
+                skuList.map { sku -> QueryProductDetailsParams.Product
+                    .newBuilder()
+                    .setProductId(sku)
+                    .setProductType(productType)
+                    .build()
+                }
+            )
+            .build()
 
         return Single.create {
-            billingClient.querySkuDetailsAsync(SkuDetailsParams
-                .newBuilder()
-                .setSkusList(skuList)
-                .setType(productType)
-                .build()
-            ) { billingResult, skus ->
+            billingClient.queryProductDetailsAsync(queryProductDetailsParams) { billingResult, productDetails ->
                 if (billingResult.responseCode == BillingResponseCode.OK) {
-                    it.onSuccess(skus!!)
+                    it.onSuccess(productDetails)
                 } else {
-                    it.onError(BillingOperationException("Failed to query sku details", billingResult))
+                    it.onError(BillingOperationException("Failed to query product details", billingResult))
                 }
             }
         }
     }
 
-    private fun queryPurchaseHistory(@BillingClient.ProductType productType: String): Single<List<PurchaseHistoryRecord>> {
-        return Single.create {
-            billingClient.queryPurchaseHistoryAsync(productType) {
-                    billingResult, historyRecords ->
-
-                if (billingResult.responseCode == BillingResponseCode.OK) {
-                    it.onSuccess(historyRecords!!)
-                } else {
-                    it.onError(BillingOperationException("Failed to query purchase history", billingResult))
-                }
-            }
-        }
-    }
 
     private fun queryPurchases(@BillingClient.ProductType productType: String): Single<List<Purchase>> {
         return Single.create {
