@@ -219,7 +219,11 @@ class ReactivePlayBilling constructor(context: Context) {
 
     private fun queryPurchases(@BillingClient.ProductType productType: String): Single<List<Purchase>> {
         return Single.create {
-            billingClient.queryPurchasesAsync(productType) {
+            billingClient.queryPurchasesAsync(QueryPurchasesParams
+                .newBuilder()
+                .setProductType(productType)
+                .build()
+            ) {
                     billingResult, purchases ->
 
                 if (billingResult.responseCode == BillingResponseCode.OK) {
